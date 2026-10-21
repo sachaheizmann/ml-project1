@@ -1,0 +1,8 @@
+# raw competition data (large, provided by the course)
+data/
+
+# predictions written by run.py
+submission.csv
+
+# fast .npy copies of the data, built by utils.load_data_cached
+cache/

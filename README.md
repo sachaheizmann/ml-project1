@@ -7,7 +7,8 @@ the decision threshold is chosen to maximize F1 with 5-fold cross-validation.
 Only Python, NumPy and the standard library are used.
 
 ## Data
-Download the three CSV files from https://www.aicrowd.com/challenges/epfl-machine-learning-project-1
+
+Download the three CSV files from <https://www.aicrowd.com/challenges/epfl-machine-learning-project-1>
 and keep their original names.
 
 Put the three CSV files of the competition in `data/dataset_to_release/dataset/`:
@@ -48,7 +49,7 @@ No random choices are involved, and the seed is fixed anyway.
 | `check_preprocessing.py` | Sanity check of the preprocessed shapes and missing values. |
 | `utils.py` | F1 score, threshold search, and `load_data_cached` (see below). |
 | `helpers.py` | Course-provided CSV loading and submission writing. |
-| `latex-example-paper/report.tex` | The report. |
+| `report.tex` | The report. |
 
 ## Cache for the experiment scripts
 
@@ -73,11 +74,13 @@ Measured on our machine (Linux, 30 GB RAM), with the cache already built:
 
 ## Grading tests
 
-The tests need `pytest`, `gitpython` and `black` (see `grading_tests/environment.yml`):
+The grading tests are provided by the course in the folder `grading_tests` of
+<https://github.com/epfml/ML_course/tree/main/projects/project1/grading_tests>.
+Copy that folder next to our code and run (the tests need `pytest`, `gitpython`
+and `black`):
 
 ```bash
-cd grading_tests
-pytest --github_link <URL of this GitHub repository> .
+pytest grading_tests --github_link <URL of this GitHub repository>
 ```
 
 During development `--github_link ..` tests the local folder; the only test that

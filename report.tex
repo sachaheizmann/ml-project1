@@ -3,19 +3,17 @@
 \usepackage{hyperref}
 \usepackage{graphicx}
 \usepackage{amsmath}
-\usepackage{xcolor}
+\usepackage{amssymb}
 
-% Marks content that must still be filled in. Remove before submitting.
-\newcommand{\pending}[1]{\textcolor{red}{[#1]}}
+
 
 \begin{document}
-\title{Predicting Coronary Heart Disease from Survey Data\\
-       with Regularized Logistic Regression}
+\title{Predicting Heart Disease from Survey Data}
 
 \author{
-  \pending{Name 1, Name 2, Name 3}\\
+  Sacha Heizmann, Philipp Glaser, Gaspard Héliot \\
   \textit{École Polytechnique Fédérale de Lausanne, Switzerland}\\
-  \pending{Team name}
+  
 }
 
 \maketitle
@@ -56,60 +54,103 @@ the test set has $109\,379$ respondents. Only $8.8\%$ of the training
 labels are positive, so a classifier that always answers ``no disease''
 reaches $91.2\%$ accuracy while detecting nobody. Accuracy is
 therefore a misleading metric, and we use the $F_1$ score, the
-harmonic mean of precision and recall of the positive class
-(\pending{state the metric of the competition leaderboard}).
+harmonic mean of precision and recall of the positive class; the
+competition leaderboard also ranks by $F_1$ and additionally shows
+accuracy.
 
-The data is incomplete: $44.8\%$ of all values are missing, $82$
-features are complete and $147$ are missing in more than half of the
-respondents. Most features are coded answers rather than measurements
-($20$ features have at most two distinct values, $199$ have three to
-ten, $102$ more than ten). Inspecting the most frequent values showed
-special codes: yes/no questions also contain $7$ (``don't know'') and
-$9$ (``refused''), and the ``days in the last month'' questions use
-$88$ for ``none'' (the most frequent value of the physical and mental
-health features), with $77$/$99$ for ``don't know''/``refused''.
-Read as numbers, these codes act as large outliers.
-Some features describe the survey process (interview date, sequence
-number, sampling unit) and not the respondent.
+The data is incomplete: $44.8\%$ of all values are missing, and $147$
+features are missing in more than half of the respondents. Many answers
+use special codes: yes/no questions also contain $7$ (``don't know'')
+and $9$ (``refused''), and the ``days in the last month'' questions use
+$88$ for ``none'' and $77$/$99$ for ``don't know''/``refused''. Read as
+numbers, these codes act as large outliers. Some features describe the
+survey process (interview date, sequence number, sampling unit), not
+the respondent.
 
 % ------------------------------------------------------------------
 \section{Models and Methods}
 \label{sec:methods}
 
+% Tables are defined here, on page 1: a two-column table (table*) can only
+% appear at the top of a page AFTER the one where it is defined.
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \caption{Required methods on one $80/20$ split with baseline
+  preprocessing (no special-code recoding; $173$ columns).
+  $\gamma=0.05$ (GD), $10^{-4}$ (SGD, $10^5$ single-sample steps),
+  $0.5$ (logistic), $300$ iterations, $\lambda=10^{-4}$.}
+  \label{tab:methods}
+  \begin{tabular}{|l|c|c|}
+    \hline
+    Method & Best $F_1$ & Threshold\\
+    \hline
+    \texttt{mean\_squared\_error\_gd} & 0.406 & 0.209\\
+    \texttt{mean\_squared\_error\_sgd} & 0.399 & 0.216\\
+    \texttt{least\_squares} & 0.408 & 0.217\\
+    \texttt{ridge\_regression} & 0.406 & 0.199\\
+    \texttt{logistic\_regression} & 0.412 & 0.201\\
+    \texttt{reg\_logistic\_regression} & 0.412 & 0.202\\
+    \hline
+  \end{tabular}
+\end{table}
+
+\begin{table*}[t]
+  \centering
+  \footnotesize
+  \renewcommand{\arraystretch}{1.1}
+  \caption{5-fold cross-validation of regularized logistic regression
+  ($\lambda=10^{-4}$, $\gamma=0.5$, $300$ iterations, seed $0$), mean $\pm$
+  std over folds. $\Delta F_1$: per-fold difference to configuration (c).
+  Honest $F_1$: threshold chosen on the other half of the fold.}
+  \label{tab:cv}
+  \begin{tabular}{|l|c|c|c|c|}
+    \hline
+    Configuration & Best $F_1$ & Honest $F_1$ & $\Delta F_1$ vs.\ (c)
+      & Folds better than (c)\\
+    \hline
+    (a) baseline & $0.412 \pm 0.005$ & $0.410 \pm 0.006$
+      & $-0.0132 \pm 0.0030$ & 0 of 5\\
+    (b) + special codes recoded & $0.425 \pm 0.007$ & $0.422 \pm 0.006$
+      & $+0.0002 \pm 0.0005$ & 3 of 5\\
+    (c) + administrative features removed & $0.425 \pm 0.006$
+      & $0.422 \pm 0.006$ & -- & --\\
+    (d) (c) + missing-value indicators & $0.426 \pm 0.008$
+      & $0.425 \pm 0.008$ & $+0.0007 \pm 0.0018$ & 3 of 5\\
+    (e) (c) + squared terms & $0.425 \pm 0.008$ & $0.422 \pm 0.006$
+      & $+0.0001 \pm 0.0018$ & 3 of 5\\
+    \hline
+  \end{tabular}
+\end{table*}
+
 \subsection{Implemented methods}
 
-Let $X\in\mathbb{R}^{N\times D}$ be the feature matrix and $w$ the
-weights. The linear methods minimize
-$L(w)=\frac{1}{2N}\sum_n (y_n-x_n^\top w)^2$. Gradient descent (GD)
-updates $w\leftarrow w-\gamma\nabla L(w)$; stochastic gradient descent
-(SGD) uses one random sample per step; least squares solves
-$X^\top Xw=X^\top y$; ridge regression adds $\lambda\|w\|^2$, which
-gives $(X^\top X+2N\lambda I)w=X^\top y$.
-
-For labels $y\in\{0,1\}$ logistic regression minimizes the mean
-negative log-likelihood
+The linear methods minimize
+$L(w)=\frac{1}{2N}\sum_n (y_n-x_n^\top w)^2$ by GD, by SGD (one sample
+per step) or through the normal equations: least squares solves
+$X^\top Xw=X^\top y$, ridge regression ($+\lambda\|w\|^2$) solves
+$(X^\top X+2N\lambda I)w=X^\top y$. With the baseline preprocessing
+$X^\top X$ is rank-deficient (rank $167$ of $173$), because the survey
+contains calculated variables that are exact combinations of other
+columns, so least squares uses the pseudo-inverse,
+$w=(X^\top X)^{+}X^\top y$. Logistic regression ($y\in\{0,1\}$)
+minimizes by gradient descent
 \begin{equation}
   L(w)=\frac1N\sum_{n=1}^{N}\Bigl[\ln\bigl(1+e^{x_n^\top w}\bigr)-y_n x_n^\top w\Bigr],
 \end{equation}
-with gradient $\frac1N X^\top(\sigma(Xw)-y)$ and plain gradient
-descent. The regularized version adds $\lambda\|w\|^2$ to the objective,
-i.e.\ $2\lambda w$ to the gradient; this is useful because the
-unpenalized weights diverge when the data is separable
-(lecture~5b)~\cite{cs433}. For both regularized methods the returned
-loss excludes the penalty. We evaluate the loss in the stable form
-$\ln(1+e^s)=\text{logaddexp}(0,s)$ to avoid overflow. All methods use
-only NumPy.
+computed with $\text{logaddexp}$ to avoid overflow; the regularized
+version adds $\lambda\|w\|^2$, which keeps the weights finite when the
+data is separable (lecture~5b)~\cite{cs433}. The loss returned by the
+regularized methods excludes the penalty.
 
 \subsection{Preprocessing}
 
 All statistics are learned on training rows only and then applied
 unchanged to validation and test rows, so no information from held-out
-data enters the model. (1) \emph{Recoding of special codes}, per
-feature: if its largest value is $9$, $99$, $999$ or $9999$ we treat it as
-``refused'' and set it to missing, together with the matching ``don't
-know'' code ($7$, $77$, $777$, $7777$) when present; the codes $88$, $888$
-and $8888$ (``none'') are set to $0$. The rule fires on $234$ of the $321$
-features. (2) We drop the nine administrative features (state code,
+data enters the model. (1) \emph{Special codes:} in features whose largest value is $9$, $99$,
+$999$ or $9999$, the codes $7$/$9$, $77$/$99$, $777$/$999$, $7777$/$9999$
+become missing and $88$/$888$/$8888$ (``none'') become $0$ ($234$ of the
+$321$ features). (2) We drop the nine administrative features (state code,
 interview date, sequence number, sampling unit, \dots), the features
 that are missing in more than $50\%$ of the rows, and constant
 features. (3) Remaining missing values are replaced by the median.
@@ -137,137 +178,56 @@ a per-fold choice.
 \section{Results}
 \label{sec:results}
 
-\begin{table}[htbp]
-  \centering
-  \footnotesize
-  \begin{tabular}{|l|c|c|}
-    \hline
-    Method & Best $F_1$ & Threshold\\
-    \hline
-    \texttt{mean\_squared\_error\_gd} & 0.406 & 0.209\\
-    \texttt{mean\_squared\_error\_sgd} & 0.399 & 0.216\\
-    \texttt{least\_squares} & 0.408 & 0.217\\
-    \texttt{ridge\_regression} & 0.406 & 0.199\\
-    \texttt{logistic\_regression} & 0.412 & 0.201\\
-    \texttt{reg\_logistic\_regression} & 0.412 & 0.202\\
-    \hline
-  \end{tabular}
-  \caption{Required methods on one $80/20$ split with baseline
-  preprocessing (no special-code recoding; $173$ columns).
-  $\gamma=0.05$ (GD), $10^{-4}$ (SGD, $10^5$ single-sample steps),
-  $0.5$ (logistic), $300$ iterations, $\lambda=10^{-4}$.}
-  \label{tab:methods}
-\end{table}
-
-\emph{Methods.} Table~\ref{tab:methods} compares the six methods. The
-five that work reach $F_1$ between $0.399$ and $0.412$; the gaps are
+\emph{Methods.} Table~\ref{tab:methods} compares the six methods. All
+six methods reach $F_1$ between $0.399$ and $0.412$; the gaps are
 within the noise of a single split (about $0.005$ to $0.008$ from fold
 to fold), so we cannot rank them. SGD diverged with step size $10^{-3}$
-(weight norm above $10^{9}$), presumably because single-sample
-gradients on standardized data with outliers are large; $10^{-4}$ and
-$10^{-5}$ were stable. We use regularized logistic regression as our
-main model since it models the label directly and is robust to
-unbalanced data (lecture~5b).
+(weight norm above $10^{9}$); $10^{-4}$ and $10^{-5}$ were stable. We
+use regularized logistic regression, which models the label directly
+(lecture~5b).
 
-\begin{table}[htbp]
-  \centering
-  \footnotesize
-  \begin{tabular}{|l|c|c|}
-    \hline
-    Setting & Columns & $F_1$\\
-    \hline
-    Baseline & 173 & 0.412\\
-    + special codes recoded & 172 & 0.423\\
-    + administrative features removed (\textbf{final}) & 163 & 0.424\\
-    \hline
-    final, 1000 iterations & 163 & 0.423\\
-    final, 3000 iterations & 163 & 0.424\\
-    final + missing-value indicators & 242 & 0.425\\
-    final + squared terms & 221 & 0.422\\
-    \hline
-  \end{tabular}
-  \caption{Ablation for regularized logistic regression ($\lambda=10^{-4}$,
-  $\gamma=0.5$, $300$ iterations unless stated), single $80/20$ split.
-  Rows below the line change one aspect of the final setting.}
-  \label{tab:ablation}
-\end{table}
-
-\emph{Ablation.} Table~\ref{tab:ablation} shows the effect of each
-change on a single split. In 5-fold cross-validation, recoding the
-special codes improves $F_1$ by $0.013$ and is better in all five
-folds; it is the only change that helps. Removing the administrative
-features, adding indicators for features with at least $5\%$ missing
-values ($79$ indicators), adding squared terms for $58$ continuous-looking
-features, and training longer each change $F_1$ by less than the
-fold-to-fold noise. Our final setting reaches $F_1=0.425\pm0.006$
-in cross-validation ($0.422\pm0.006$ with the honest threshold
-estimate), so tuning the threshold on the scored rows inflates $F_1$ by
-only $0.001$--$0.003$. Table~\ref{tab:cv} gives the cross-validated
-scores of each configuration and their paired differences to the final
-setting.
-
-\begin{table*}[htbp]
-  \centering
-  \footnotesize
-  \begin{tabular}{|l|c|c|c|c|}
-    \hline
-    Configuration & Best $F_1$ & Honest $F_1$ & $\Delta F_1$ vs.\ (c)
-      & Folds better than (c)\\
-    \hline
-    (a) baseline & $0.412 \pm 0.005$ & $0.410 \pm 0.006$
-      & $-0.0132 \pm 0.0030$ & 0 of 5\\
-    (b) + special codes recoded & $0.425 \pm 0.007$ & $0.422 \pm 0.006$
-      & $+0.0002 \pm 0.0005$ & 3 of 5\\
-    (c) + administrative features removed & $0.425 \pm 0.006$
-      & $0.422 \pm 0.006$ & -- & --\\
-    (d) (c) + missing-value indicators & $0.426 \pm 0.008$
-      & $0.425 \pm 0.008$ & $+0.0007 \pm 0.0018$ & 3 of 5\\
-    (e) (c) + squared terms & $0.425 \pm 0.008$ & $0.422 \pm 0.006$
-      & $+0.0001 \pm 0.0018$ & 3 of 5\\
-    \hline
-  \end{tabular}
-  \caption{5-fold cross-validation of regularized logistic regression
-  ($\lambda=10^{-4}$, $\gamma=0.5$, $300$ iterations; seed $0$). Mean
-  $\pm$ standard deviation over the five folds. $\Delta F_1$: per-fold
-  difference of the best $F_1$ to configuration (c), our final setting.
-  Honest $F_1$: threshold chosen on one half of the validation fold and
-  $F_1$ measured on the other half.}
-  \label{tab:cv}
-\end{table*}
+\emph{Ablation.} Table~\ref{tab:cv} compares the preprocessing
+configurations in 5-fold cross-validation. Recoding the special codes
+raises $F_1$ from $0.412$ to $0.425$ ($0.423$ on a single $80/20$
+split), is better in all five folds, and is the only change that helps.
+Removing the administrative features, adding indicators for features
+with at least $5\%$ missing values ($79$ indicators) and adding squared
+terms for $58$ continuous-looking features each change $F_1$ by less
+than the fold-to-fold noise, and so does training longer ($1000$ and
+$3000$ instead of $300$ iterations give $0.423$ and $0.424$ instead of
+$0.424$ on the single split). Our final setting reaches
+$F_1=0.425\pm0.006$ in cross-validation ($0.422\pm0.006$ with the
+honest threshold estimate), so tuning the threshold on the scored rows
+inflates $F_1$ by only $0.001$--$0.003$.
 
 \emph{Final model.} The pooled out-of-fold threshold is $0.195$
 (pooled $F_1=0.4250$). On the test set the model predicts $13.9\%$ of the
 respondents as positive, almost the same as the $13.9\%$ observed in
 cross-validation, so the threshold transfers to the model trained on
-all data. \pending{Leaderboard score of the submitted file.}
+all data. On the leaderboard the submission reaches $F_1=0.435$
+(accuracy $0.872$), slightly above our cross-validation estimate of
+$0.425\pm0.006$.
 
 % ------------------------------------------------------------------
 \section{Discussion}
 
-\emph{Strengths.} The pipeline is simple, reproducible and cheap
-($72$ seconds from the raw files to the submission), and every design
-decision is backed by a cross-validated comparison. Recoding the
-special codes is a cheap, interpretable fix that targets a real
-property of survey data.
+\emph{Strengths.} The pipeline is simple and cheap ($72$ seconds from
+the raw files to the submission), every design decision is backed by a
+cross-validated comparison, and recoding the special codes is an
+interpretable fix for a real property of survey data.
 
 \emph{Why the score plateaus.} Several unrelated changes leave $F_1$
-near $0.42$. In the bias--variance picture of lecture~4b this suggests
-that our model class is the limit (high bias): all methods fit a
-linear function of the same features. The imbalance is also why the five
-working methods are so close: the threshold search compensates for the
-sensitivity of the least-squares fit to class proportions that lecture~5a
-describes (a hypothesis we did not test separately).
-More flexible inputs did not help in the form we tried: squared terms
-changed $F_1$ by less than the noise.
+near $0.42$, which suggests that the linear model class is the limit
+(high bias, lecture~4b). The six methods are probably so close because
+the threshold search compensates for the sensitivity of least squares
+to class proportions (lecture~5a); we did not test this separately.
 
-\emph{Limitations.} We did not test one-hot encoding of the
-category-like features, which would remove the false assumption that
-answer code $3$ is ``more'' than code $1$, nor non-linear models or
-other losses. Our special-code rule is a heuristic and applies to many
-columns; some of them may be misclassified. Four survey-design variables
-(three sampling weights and a stratum code) are still among the
-features; we did not test removing them. The standard deviations over
-five folds are only a rough noise level.
+\emph{Limitations.} We did not test one-hot encoding of category-like
+features (answer code $3$ is not ``more'' than code $1$), non-linear
+models or other losses. The special-code rule is a heuristic that may
+misclassify some columns, four survey-design variables (three sampling
+weights and a stratum code) remain among the features, and five folds
+give only a rough noise level.
 
 % ------------------------------------------------------------------
 \section{Summary}
@@ -276,17 +236,12 @@ We implemented and compared the six required methods on BRFSS data. The
 decisive choices were to evaluate with $F_1$ and a tuned threshold, and
 to recode the survey's special answer codes, which improved $F_1$ by
 $0.013$ in every fold. Regularized logistic regression on $163$ columns
-reaches $F_1=0.425\pm0.006$ in cross-validation. \pending{Add the
-leaderboard result.} The ablations show that the remaining ideas we
+reaches $F_1=0.425\pm0.006$ in cross-validation and $F_1=0.435$ on the
+test set. The ablations show that the remaining ideas we
 tried are within noise, pointing to a richer model class or encoding as
-the next step.
-
-\section*{Reproducibility}
-
-\texttt{run.py} reproduces our submission (seeds fixed); the
-\texttt{README} lists the commands, and \texttt{cv.py} and
-\texttt{ablation.py} regenerate the tables.
-\pending{GitHub link to the commit.}
+the next step. \texttt{run.py} reproduces our submission and
+\texttt{cv.py} and \texttt{ablation.py} the tables (see the
+\texttt{README}; \url{https://github.com/sachaheizmann/ml-project1}).
 
 \begin{thebibliography}{1}
 \bibitem{cs433} N.~Flammarion and M.~Jaggi, \emph{CS-433 Machine

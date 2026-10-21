@@ -65,9 +65,14 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
 
 # ------------------------------------------------------ 3. least squares
 def least_squares(y, tx):
-    """Least squares regression using the normal equations."""
-    # solve (X^T X) w = X^T y ; solve() is more stable than inverting
-    w = np.linalg.solve(tx.T @ tx, tx.T @ y)
+    """Least squares regression using the normal equations (X^T X) w = X^T y.
+
+    The equations are solved with the pseudo-inverse of X^T X, which gives the
+    minimum-norm solution and also works when X^T X is singular.
+    """
+    # the survey has calculated columns that are exact combinations of others,
+    # so X^T X can be singular and np.linalg.solve would fail
+    w = np.linalg.pinv(tx.T @ tx) @ (tx.T @ y)
     return w, compute_mse(y, tx, w)
 
 

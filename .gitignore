@@ -6,3 +6,4 @@ submission.csv
 
 # fast .npy copies of the data, built by utils.load_data_cached
 cache/
+__pycache__/

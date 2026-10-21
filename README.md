@@ -7,6 +7,8 @@ the decision threshold is chosen to maximize F1 with 5-fold cross-validation.
 Only Python, NumPy and the standard library are used.
 
 ## Data
+Download the three CSV files from https://www.aicrowd.com/challenges/epfl-machine-learning-project-1
+and keep their original names.
 
 Put the three CSV files of the competition in `data/dataset_to_release/dataset/`:
 
